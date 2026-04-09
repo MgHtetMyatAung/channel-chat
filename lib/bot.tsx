@@ -26,6 +26,7 @@ export function getBot() {
 
   // Handle @mentions in Groups and Channels
   botInstance.onNewMention(async (thread, message) => {
+    console.log(`[Bot] New mention received in thread: ${thread.id}`);
     await thread.subscribe();
     await thread.post(
       <Card title="Hello Group!">
@@ -39,6 +40,7 @@ export function getBot() {
 
   // Handle Direct Messages (DMs)
   botInstance.onDirectMessage(async (thread, message) => {
+    console.log(`[Bot] DM received from: ${message.author?.userName}`);
     await thread.subscribe();
     await thread.post(
       <Card title="Direct Message Active">
@@ -49,6 +51,7 @@ export function getBot() {
 
   // Handle follow-up messages in any subscribed thread
   botInstance.onSubscribedMessage(async (thread, message) => {
+    console.log(`[Bot] Subscribed message in ${thread.id}: ${message.text?.slice(0, 20)}`);
     const text = message.text?.toLowerCase() || "";
     
     if (text === "exit" || text === "/stop") {
