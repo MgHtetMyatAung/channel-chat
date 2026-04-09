@@ -9,28 +9,50 @@ let botInstance: Chat<any, any> | null = null;
 export function getBot() {
   if (botInstance) return botInstance;
 
-  // Clean the URL to remove accidental quotes from Vercel dashboard
-  const rawUrl = process.env.REDIS_URL;
-  const cleanUrl = rawUrl?.replace(/['"]/g, "");
-  const isUrlValid = !!(cleanUrl?.startsWith("redis"));
+  // Log env var presence (not values) to help debug Vercel issues
+  console.log("[Bot] Environment check:", {
+    hasBotToken: !!process.env.TELEGRAM_BOT_TOKEN,
+    hasBotUsername: !!process.env.TELEGRAM_BOT_USERNAME,
+    botUsername: process.env.TELEGRAM_BOT_USERNAME ?? "(missing!)",
+    hasSecretToken: !!process.env.TELEGRAM_WEBHOOK_SECRET_TOKEN,
+    hasRedisUrl: !!process.env.REDIS_URL,
+  });
+
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const botUsername = process.env.TELEGRAM_BOT_USERNAME;
+  const secretToken = process.env.TELEGRAM_WEBHOOK_SECRET_TOKEN;
+
+  if (!botToken) {
+    throw new Error("[Bot] TELEGRAM_BOT_TOKEN is not set in environment variables!");
+  }
+
+  // Clean the Redis URL to remove accidental quotes from Vercel dashboard
+  const rawUrl = process.env.REDIS_URL?.replace(/['"]/g, "");
+  const isUrlValid = !!(rawUrl?.startsWith("redis"));
 
   botInstance = new Chat({
-    userName: process.env.TELEGRAM_BOT_USERNAME || "bot",
+    userName: botUsername!,
     adapters: {
-      telegram: createTelegramAdapter(),
+      // Explicitly pass all config to avoid env var parsing issues
+      telegram: createTelegramAdapter({
+        botToken,
+        secretToken,
+        userName: botUsername,
+        mode: "webhook",
+      }),
     },
-    // Only use Redis if a valid URL is provided. 
-    // This prevents build-time crashes on Vercel.
-    state: isUrlValid ? createRedisState({ url: cleanUrl }) : createMemoryState(),
+    state: isUrlValid
+      ? createRedisState({ url: rawUrl })
+      : createMemoryState(),
   });
 
   // Handle @mentions in Groups and Channels
   botInstance.onNewMention(async (thread, message) => {
-    console.log(`[Bot] New mention received in thread: ${thread.id}`);
+    console.log(`[Bot] onNewMention fired — thread: ${thread.id}, text: "${message.text}"`);
     await thread.subscribe();
     await thread.post(
-      <Card title="Hello Group!">
-        <CardText>{`I am now listening to this channel. You said: **${message.text}**`}</CardText>
+      <Card title="Hello!">
+        <CardText>{`I am now listening. You said: **${message.text}**`}</CardText>
         <Actions>
           <Button id="help">Show Commands</Button>
         </Actions>
@@ -40,23 +62,23 @@ export function getBot() {
 
   // Handle Direct Messages (DMs)
   botInstance.onDirectMessage(async (thread, message) => {
-    console.log(`[Bot] DM received from: ${message.author?.userName}`);
+    console.log(`[Bot] onDirectMessage fired — from: ${message.author?.userName}, text: "${message.text}"`);
     await thread.subscribe();
     await thread.post(
-      <Card title="Direct Message Active">
-        <CardText>{`Hello! I&apos;ve subscribed to our DM. You said: "${message.text}". I&apos;ll respond to your messages here.`}</CardText>
+      <Card title="Direct Message">
+        <CardText>{`Hello! You said: "${message.text}". I'll keep listening here.`}</CardText>
       </Card>
     );
   });
 
-  // Handle follow-up messages in any subscribed thread
+  // Handle follow-up messages in subscribed threads
   botInstance.onSubscribedMessage(async (thread, message) => {
-    console.log(`[Bot] Subscribed message in ${thread.id}: ${message.text?.slice(0, 20)}`);
+    console.log(`[Bot] onSubscribedMessage fired — thread: ${thread.id}, text: "${message.text?.slice(0, 30)}"`);
     const text = message.text?.toLowerCase() || "";
-    
+
     if (text === "exit" || text === "/stop") {
       await thread.unsubscribe();
-      await thread.post("Subscription ended. I'll stop responding until mentioned again.");
+      await thread.post("Bot unsubscribed. Mention me again to restart.");
       return;
     }
 
@@ -64,14 +86,14 @@ export function getBot() {
       await thread.post(
         <Card title="Available Commands">
           <CardText>
-            {`- **help**: Show this menu\n- **exit**: Unsubscribe the bot\n- **ANY TEXT**: I'll echo it back!`}
+            {`- **help** / **/help** — Show this menu\n- **exit** / **/stop** — Unsubscribe bot\n- Any other text — I'll echo it back`}
           </CardText>
         </Card>
       );
       return;
     }
-    
-    await thread.post(`Continuing conversation: ${message.text}`);
+
+    await thread.post(`Echo: ${message.text}`);
   });
 
   return botInstance;
