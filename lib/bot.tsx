@@ -2,13 +2,15 @@
 import { Chat, Card, CardText, Actions, Button } from "chat";
 import { createTelegramAdapter } from "@chat-adapter/telegram";
 import { createRedisState } from "@chat-adapter/state-redis";
+import { createMemoryState } from "@chat-adapter/state-memory";
 
 export const bot = new Chat({
-  userName: process.env.TELEGRAM_BOT_USERNAME!,
+  userName: process.env.TELEGRAM_BOT_USERNAME || "bot",
   adapters: {
     telegram: createTelegramAdapter(),
   },
-  state: createRedisState(),
+  // Use Redis in production, fallback to Memory during build or local dev
+  state: process.env.REDIS_URL ? createRedisState() : createMemoryState(),
 });
 
 // Handle @mentions in Groups and Channels
@@ -29,7 +31,7 @@ bot.onDirectMessage(async (thread, message) => {
   await thread.subscribe();
   await thread.post(
     <Card title="Direct Message Active">
-      <CardText>{`Hello! I've subscribed to our DM. You said: "${message.text}". I'll respond to your messages here.`}</CardText>
+      <CardText>{`Hello! I&apos;ve subscribed to our DM. You said: "${message.text}". I&apos;ll respond to your messages here.`}</CardText>
     </Card>
   );
 });
@@ -58,4 +60,4 @@ bot.onSubscribedMessage(async (thread, message) => {
   await thread.post(`Continuing conversation: ${message.text}`);
 });
 
-bot.initialize();
+// Note: bot.initialize() is omitted here as it is called automatically by bot.webhooks.telegram()
