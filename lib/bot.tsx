@@ -4,60 +4,72 @@ import { createTelegramAdapter } from "@chat-adapter/telegram";
 import { createRedisState } from "@chat-adapter/state-redis";
 import { createMemoryState } from "@chat-adapter/state-memory";
 
-export const bot = new Chat({
-  userName: process.env.TELEGRAM_BOT_USERNAME || "bot",
-  adapters: {
-    telegram: createTelegramAdapter(),
-  },
-  // Use Redis in production, fallback to Memory during build or local dev
-  state: process.env.REDIS_URL ? createRedisState() : createMemoryState(),
-});
+let botInstance: Chat<any, any> | null = null;
 
-// Handle @mentions in Groups and Channels
-bot.onNewMention(async (thread, message) => {
-  await thread.subscribe();
-  await thread.post(
-    <Card title="Hello Group!">
-      <CardText>{`I am now listening to this channel. You said: **${message.text}**`}</CardText>
-      <Actions>
-        <Button id="help">Show Commands</Button>
-      </Actions>
-    </Card>
-  );
-});
+export function getBot() {
+  if (botInstance) return botInstance;
 
-// Handle Direct Messages (DMs)
-bot.onDirectMessage(async (thread, message) => {
-  await thread.subscribe();
-  await thread.post(
-    <Card title="Direct Message Active">
-      <CardText>{`Hello! I&apos;ve subscribed to our DM. You said: "${message.text}". I&apos;ll respond to your messages here.`}</CardText>
-    </Card>
-  );
-});
+  // Clean the URL to remove accidental quotes from Vercel dashboard
+  const rawUrl = process.env.REDIS_URL;
+  const cleanUrl = rawUrl?.replace(/['"]/g, "");
+  const isUrlValid = !!(cleanUrl?.startsWith("redis"));
 
-// Handle follow-up messages in any subscribed thread
-bot.onSubscribedMessage(async (thread, message) => {
-  const text = message.text?.toLowerCase() || "";
-  
-  if (text === "exit" || text === "/stop") {
-    await thread.unsubscribe();
-    await thread.post("Subscription ended. I'll stop responding until mentioned again.");
-    return;
-  }
+  botInstance = new Chat({
+    userName: process.env.TELEGRAM_BOT_USERNAME || "bot",
+    adapters: {
+      telegram: createTelegramAdapter(),
+    },
+    // Only use Redis if a valid URL is provided. 
+    // This prevents build-time crashes on Vercel.
+    state: isUrlValid ? createRedisState({ url: cleanUrl }) : createMemoryState(),
+  });
 
-  if (text === "/help" || text === "help") {
+  // Handle @mentions in Groups and Channels
+  botInstance.onNewMention(async (thread, message) => {
+    await thread.subscribe();
     await thread.post(
-      <Card title="Available Commands">
-        <CardText>
-          {`- **help**: Show this menu\n- **exit**: Unsubscribe the bot from this chat\n- **ANY TEXT**: I'll echo it back!`}
-        </CardText>
+      <Card title="Hello Group!">
+        <CardText>{`I am now listening to this channel. You said: **${message.text}**`}</CardText>
+        <Actions>
+          <Button id="help">Show Commands</Button>
+        </Actions>
       </Card>
     );
-    return;
-  }
-  
-  await thread.post(`Continuing conversation: ${message.text}`);
-});
+  });
 
-// Note: bot.initialize() is omitted here as it is called automatically by bot.webhooks.telegram()
+  // Handle Direct Messages (DMs)
+  botInstance.onDirectMessage(async (thread, message) => {
+    await thread.subscribe();
+    await thread.post(
+      <Card title="Direct Message Active">
+        <CardText>{`Hello! I&apos;ve subscribed to our DM. You said: "${message.text}". I&apos;ll respond to your messages here.`}</CardText>
+      </Card>
+    );
+  });
+
+  // Handle follow-up messages in any subscribed thread
+  botInstance.onSubscribedMessage(async (thread, message) => {
+    const text = message.text?.toLowerCase() || "";
+    
+    if (text === "exit" || text === "/stop") {
+      await thread.unsubscribe();
+      await thread.post("Subscription ended. I'll stop responding until mentioned again.");
+      return;
+    }
+
+    if (text === "/help" || text === "help") {
+      await thread.post(
+        <Card title="Available Commands">
+          <CardText>
+            {`- **help**: Show this menu\n- **exit**: Unsubscribe the bot\n- **ANY TEXT**: I'll echo it back!`}
+          </CardText>
+        </Card>
+      );
+      return;
+    }
+    
+    await thread.post(`Continuing conversation: ${message.text}`);
+  });
+
+  return botInstance;
+}
