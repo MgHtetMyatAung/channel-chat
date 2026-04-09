@@ -9,6 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@chat-adapter/state-memory": "^4.24.0",
+    "@chat-adapter/state-redis": "^4.24.0",
+    "@chat-adapter/telegram": "^4.24.0",
+    "chat": "^4.24.0",
     "next": "16.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4"

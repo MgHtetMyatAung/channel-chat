@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Channel Chat | Multi-Platform AI Bot
+
+A unified chat bot built with [Chat SDK](https://github.com/vercel/chat) and [Next.js](https://nextjs.org).
+
+## Features
+
+- **Unified Logic**: Write your bot logic once and deploy across multiple platforms.
+- **Multi-Platform Support**: Currently supports Telegram, with Discord, Slack, and WhatsApp support coming soon.
+- **Serverless Ready**: Optimized for Next.js with `after()` for background processing.
+- **Persistent State**: Powered by Redis for reliable multi-platform state management.
+
+## Tech Stack
+
+- **Framework**: Next.js 15+ (App Router)
+- **SDK**: `chat` (Chat SDK)
+- **Adapters**: `@chat-adapter/telegram`
+- **State**: `@chat-adapter/state-redis`
+- **Styling**: Tailwind CSS 4.0
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+1. Create a bot via [BotFather](https://t.me/botfather) and get your **Token** and **Username**.
+2. Set up a Redis instance (e.g., [Upstash](https://upstash.com)).
+
+### Environment Variables
+
+Create a `.env` file in the root directory:
+
+```env
+TELEGRAM_BOT_TOKEN='your_token'
+TELEGRAM_BOT_USERNAME='your_username'
+TELEGRAM_WEBHOOK_SECRET_TOKEN='some_secret'
+REDIS_URL='your_redis_url'
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+pnpm dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Webhook Configuration
 
-## Learn More
+Set your webhook URL to:
+`https://your-domain.com/api/webhooks/telegram`
 
-To learn more about Next.js, take a look at the following resources:
+## Development
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Bot logic is located in `lib/bot.ts`.
+Webhook handlers are located in `app/api/webhooks/`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## License
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
